@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Generator</title>
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- html2pdf.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+    <style>
+        /* Custom Styles (if any) */
+        .invoice-preview {
+            padding: 20px;
+            background-color: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="container mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-6 text-orange-600">Invoice Generator</h1>
+        <div class="flex flex-col lg:flex-row bg-white shadow-lg rounded-lg overflow-hidden">
+            <!-- Form Section -->
+            <div class="w-full lg:w-1/2 p-6">
+                <form id="invoice-form" class="space-y-6">
+                    <!-- Logo Upload -->
+                    <div>
+                        <label class="block text-gray-700">Upload Logo (Optional)</label>
+                        <input type="file" id="logo" accept="image/*" class="mt-2 block w-full text-gray-700">
+                    </div>
+
+                    <!-- Client Details -->
+                    <div>
+                        <h2 class="text-xl font-semibold text-orange-600 mb-2">Client Details</h2>
+                        <div class="grid grid-cols-1 gap-4">
+                            <input type="text" id="client-name" placeholder="Client Name" class="border border-gray-300 p-2 rounded">
+                            <input type="email" id="client-email" placeholder="Client Email" class="border border-gray-300 p-2 rounded">
+                            <textarea id="client-address" placeholder="Client Address" class="border border-gray-300 p-2 rounded"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Invoice Details -->
+                    <div>
+                        <h2 class="text-xl font-semibold text-orange-600 mb-2">Invoice Details</h2>
+                        <div class="grid grid-cols-1 gap-4">
+                            <input type="text" id="invoice-number" placeholder="Invoice Number" class="border border-gray-300 p-2 rounded">
+                            <input type="date" id="invoice-date" class="border border-gray-300 p-2 rounded">
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div>
+                        <h2 class="text-xl font-semibold text-orange-600 mb-2">Items</h2>
+                        <table class="w-full table-auto border-collapse">
+                            <thead>
+                                <tr class="bg-gray-200">
+                                    <th class="border px-4 py-2">Item Name</th>
+                                    <th class="border px-4 py-2">Quantity</th>
+                                    <th class="border px-4 py-2">Price per Unit</th>
+                                    <th class="border px-4 py-2">Subtotal</th>
+                                    <th class="border px-4 py-2">Tax (%)</th>
+                                    <th class="border px-4 py-2">Discount</th>
+                                    <th class="border px-4 py-2">Total</th>
+                                    <th class="border px-4 py-2">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="items-body">
+                                <!-- Dynamic Rows -->
+                                <tr>
+                                    <td class="border px-4 py-2"><input type="text" class="item-name w-full p-1"></td>
+                                    <td class="border px-4 py-2"><input type="number" min="1" class="item-quantity w-full p-1 quantity" value="1"></td>
+                                    <td class="border px-4 py-2"><input type="number" min="0" step="0.01" class="item-price w-full p-1 price" value="0.00"></td>
+                                    <td class="border px-4 py-2 subtotal">$0.00</td>
+                                    <td class="border px-4 py-2"><input type="number" min="0" max="100" step="0.01" class="item-tax w-full p-1 tax" value="0"></td>
+                                    <td class="border px-4 py-2"><input type="number" min="0" step="0.01" class="item-discount w-full p-1 discount" value="0"></td>
+                                    <td class="border px-4 py-2 total">$0.00</td>
+                                    <td class="border px-4 py-2 text-center">
+                                        <button type="button" class="remove-item text-red-500">Remove</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <button type="button" id="add-item" class="mt-2 px-4 py-2 bg-orange-500 text-white rounded">Add Item</button>
+                    </div>
+
+                    <!-- Bank Details (Optional) -->
+                    <div>
+                        <h2 class="text-xl font-semibold text-orange-600 mb-2">Bank Details (Optional)</h2>
+                        <textarea id="bank-details" placeholder="Bank Details" class="border border-gray-300 p-2 rounded"></textarea>
+                    </div>
+
+                    <!-- Notes for Customer (Optional) -->
+                    <div>
+                        <h2 class="text-xl font-semibold text-orange-600 mb-2">Notes for Customer (Optional)</h2>
+                        <textarea id="notes" placeholder="Notes" class="border border-gray-300 p-2 rounded"></textarea>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex space-x-4">
+                        <button type="button" id="download-pdf" class="flex-1 px-4 py-2 bg-green-500 text-white rounded">Download PDF</button>
+                        <button type="button" id="print-invoice" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded">Print Invoice</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Preview Section -->
+            <div class="w-full lg:w-1/2 p-6 bg-gray-50">
+                <h2 class="text-xl font-semibold text-orange-600 mb-4">Invoice Preview</h2>
+                <div id="invoice-preview" class="invoice-preview">
+                    <!-- Logo -->
+                    <div id="preview-logo" class="mb-4"></div>
+
+                    <!-- Company and Client Details -->
+                    <div class="flex flex-col md:flex-row justify-between mb-4">
+                        <div>
+                            <h2 class="text-2xl font-bold text-orange-600">Your Company</h2>
+                            <p>1234 Street Name</p>
+                            <p>City, State, ZIP</p>
+                            <p>Email: yourcompany@example.com</p>
+                        </div>
+                        <div>
+                            <p><strong>Bill To:</strong></p>
+                            <p id="preview-client-name">Client Name</p>
+                            <p id="preview-client-email">client@example.com</p>
+                            <p id="preview-client-address">Client Address</p>
+                        </div>
+                    </div>
+
+                    <!-- Invoice Details -->
+                    <div class="flex justify-between mb-4">
+                        <div>
+                            <p><strong>Invoice Number:</strong> <span id="preview-invoice-number">0001</span></p>
+                            <p><strong>Date:</strong> <span id="preview-invoice-date">2023-01-01</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <table class="w-full table-auto border-collapse mb-4">
+                        <thead>
+                            <tr class="bg-gray-200">
+                                <th class="border px-4 py-2">Item</th>
+                                <th class="border px-4 py-2">Quantity</th>
+                                <th class="border px-4 py-2">Price</th>
+                                <th class="border px-4 py-2">Subtotal</th>
+                                <th class="border px-4 py-2">Tax (%)</th>
+                                <th class="border px-4 py-2">Discount</th>
+                                <th class="border px-4 py-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-items">
+                            <!-- Dynamic Preview Rows -->
+                            <tr>
+                                <td class="border px-4 py-2">Item Name</td>
+                                <td class="border px-4 py-2">1</td>
+                                <td class="border px-4 py-2">$0.00</td>
+                                <td class="border px-4 py-2">$0.00</td>
+                                <td class="border px-4 py-2">0%</td>
+                                <td class="border px-4 py-2">$0.00</td>
+                                <td class="border px-4 py-2">$0.00</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <!-- Totals -->
+                    <div class="flex justify-end mb-4">
+                        <div class="w-1/2">
+                            <p><strong>Subtotal:</strong> $<span id="preview-subtotal">0.00</span></p>
+                            <p><strong>Tax:</strong> $<span id="preview-tax">0.00</span></p>
+                            <p><strong>Discount:</strong> $<span id="preview-discount">0.00</span></p>
+                            <p class="text-xl font-bold"><strong>Total:</strong> $<span id="preview-total">0.00</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Bank Details -->
+                    <div id="preview-bank-details" class="mb-4">
+                        <strong>Bank Details:</strong>
+                        <p>Your bank details here...</p>
+                    </div>
+
+                    <!-- Notes -->
+                    <div id="preview-notes">
+                        <strong>Notes:</strong>
+                        <p>Your notes here...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Select Elements
+        const addItemBtn = document.getElementById('add-item');
+        const itemsBody = document.getElementById('items-body');
+        const invoiceForm = document.getElementById('invoice-form');
+        const downloadPdfBtn = document.getElementById('download-pdf');
+        const printInvoiceBtn = document.getElementById('print-invoice');
+        const logoInput = document.getElementById('logo');
+
+        // Preview Elements
+        const previewLogo = document.getElementById('preview-logo');
+        const previewClientName = document.getElementById('preview-client-name');
+        const previewClientEmail = document.getElementById('preview-client-email');
+        const previewClientAddress = document.getElementById('preview-client-address');
+        const previewInvoiceNumber = document.getElementById('preview-invoice-number');
+        const previewInvoiceDate = document.getElementById('preview-invoice-date');
+        const previewItems = document.getElementById('preview-items');
+        const previewSubtotal = document.getElementById('preview-subtotal');
+        const previewTax = document.getElementById('preview-tax');
+        const previewDiscount = document.getElementById('preview-discount');
+        const previewTotal = document.getElementById('preview-total');
+        const previewBankDetails = document.getElementById('preview-bank-details');
+        const previewNotes = document.getElementById('preview-notes');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updatePreview();
+        });
+
+        // Add Item
+        addItemBtn.addEventListener('click', () => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="border px-4 py-2"><input type="text" class="item-name w-full p-1" placeholder="Item Name"></td>
+                <td class="border px-4 py-2"><input type="number" min="1" class="item-quantity w-full p-1 quantity" value="1"></td>
+                <td class="border px-4 py-2"><input type="number" min="0" step="0.01" class="item-price w-full p-1 price" value="0.00"></td>
+                <td class="border px-4 py-2 subtotal">$0.00</td>
+                <td class="border px-4 py-2"><input type="number" min="0" max="100" step="0.01" class="item-tax w-full p-1 tax" value="0"></td>
+                <td class="border px-4 py-2"><input type="number" min="0" step="0.01" class="item-discount w-full p-1 discount" value="0"></td>
+                <td class="border px-4 py-2 total">$0.00</td>
+                <td class="border px-4 py-2 text-center"><button type="button" class="remove-item text-red-500">Remove</button></td>
+            `;
+            itemsBody.appendChild(row);
+            attachRowEvents(row);
+            updatePreview();
+        });
+
+        // Remove Item
+        function attachRowEvents(row) {
+            const removeBtn = row.querySelector('.remove-item');
+            const inputs = row.querySelectorAll('input');
+
+            removeBtn.addEventListener('click', () => {
+                row.remove();
+                updatePreview();
+            });
+
+            inputs.forEach(input => {
+                input.addEventListener('input', () => {
+                    calculateRow(row);
+                    updatePreview();
+                });
+            });
+        }
+
+        // Initial Row Events
+        const initialRow = itemsBody.querySelector('tr');
+        attachRowEvents(initialRow);
+
+        // Calculate Row
+        function calculateRow(row) {
+            const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
+            const price = parseFloat(row.querySelector('.price').value) || 0;
+            const tax = parseFloat(row.querySelector('.tax').value) || 0;
+            const discount = parseFloat(row.querySelector('.discount').value) || 0;
+
+            const subtotal = quantity * price;
+            const taxAmount = (subtotal * tax) / 100;
+            const total = subtotal + taxAmount - discount;
+
+            row.querySelector('.subtotal').innerText = `$${subtotal.toFixed(2)}`;
+            row.querySelector('.total').innerText = `$${total.toFixed(2)}`;
+        }
+
+        // Update All Rows
+        function updateAllRows() {
+            const rows = itemsBody.querySelectorAll('tr');
+            rows.forEach(row => calculateRow(row));
+        }
+
+        // Update Preview
+        function updatePreview() {
+            // Update Client Details
+            const clientName = document.getElementById('client-name').value || 'Client Name';
+            const clientEmail = document.getElementById('client-email').value || 'client@example.com';
+            const clientAddress = document.getElementById('client-address').value || 'Client Address';
+            previewClientName.innerText = clientName;
+            previewClientEmail.innerText = clientEmail;
+            previewClientAddress.innerText = clientAddress;
+
+            // Update Invoice Details
+            const invoiceNumber = document.getElementById('invoice-number').value || '0001';
+            const invoiceDate = document.getElementById('invoice-date').value || new Date().toISOString().split('T')[0];
+            previewInvoiceNumber.innerText = invoiceNumber;
+            previewInvoiceDate.innerText = invoiceDate;
+
+            // Update Items
+            previewItems.innerHTML = '';
+            let subtotalTotal = 0;
+            let taxTotal = 0;
+            let discountTotal = 0;
+            let totalAmount = 0;
+
+            const rows = itemsBody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const itemName = row.querySelector('.item-name').value || 'Item Name';
+                const quantity = parseFloat(row.querySelector('.quantity').value) || 0;
+                const price = parseFloat(row.querySelector('.price').value) || 0;
+                const subtotal = parseFloat((quantity * price).toFixed(2));
+                const tax = parseFloat(row.querySelector('.tax').value) || 0;
+                const discount = parseFloat(row.querySelector('.discount').value) || 0;
+                const taxAmount = parseFloat(((subtotal * tax) / 100).toFixed(2));
+                const total = parseFloat((subtotal + taxAmount - discount).toFixed(2));
+
+                subtotalTotal += subtotal;
+                taxTotal += taxAmount;
+                discountTotal += discount;
+                totalAmount += total;
+
+                const previewRow = document.createElement('tr');
+                previewRow.innerHTML = `
+                    <td class="border px-4 py-2">${itemName}</td>
+                    <td class="border px-4 py-2">${quantity}</td>
+                    <td class="border px-4 py-2">$${price.toFixed(2)}</td>
+                    <td class="border px-4 py-2">$${subtotal.toFixed(2)}</td>
+                    <td class="border px-4 py-2">${tax}%</td>
+                    <td class="border px-4 py-2">$${discount.toFixed(2)}</td>
+                    <td class="border px-4 py-2">$${total.toFixed(2)}</td>
+                `;
+                previewItems.appendChild(previewRow);
+            });
+
+            previewSubtotal.innerText = subtotalTotal.toFixed(2);
+            previewTax.innerText = taxTotal.toFixed(2);
+            previewDiscount.innerText = discountTotal.toFixed(2);
+            previewTotal.innerText = totalAmount.toFixed(2);
+
+            // Update Bank Details
+            const bankDetails = document.getElementById('bank-details').value || 'Your bank details here...';
+            previewBankDetails.innerHTML = `<strong>Bank Details:</strong><p>${bankDetails.replace(/\n/g, '<br>') || 'Your bank details here...'}</p>`;
+
+            // Update Notes
+            const notes = document.getElementById('notes').value || 'Your notes here...';
+            previewNotes.innerHTML = `<strong>Notes:</strong><p>${notes.replace(/\n/g, '<br>') || 'Your notes here...'}</p>`;
+
+            // Update Logo
+            const logoFile = logoInput.files[0];
+            if (logoFile) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewLogo.innerHTML = `<img src="${e.target.result}" alt="Logo" class="h-16">`;
+                }
+                reader.readAsDataURL(logoFile);
+            } else {
+                previewLogo.innerHTML = '';
+            }
+        }
+
+        // Attach Events to Form Inputs
+        invoiceForm.addEventListener('input', () => {
+            updateAllRows();
+            updatePreview();
+        });
+
+        // PDF Generation
+        downloadPdfBtn.addEventListener('click', () => {
+            const element = document.getElementById('invoice-preview');
+            const opt = {
+                margin:       0.5,
+                filename:     'invoice.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save();
+        });
+
+        // Print Invoice
+        printInvoiceBtn.addEventListener('click', () => {
+            const element = document.getElementById('invoice-preview');
+            const opt = {
+                margin:       0.5,
+                filename:     'invoice.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).toPdf().get('pdf').then(function (pdf) {
+                window.open(pdf.output('bloburl'), '_blank');
+            });
+        });
+    </script>
+</body>
+</html>
